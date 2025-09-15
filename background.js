@@ -280,18 +280,19 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     return true; // Will respond asynchronously
   }
   
-  let url = `${jiraConfig.jira_base_url}rest/api/3/search/jql?fields=description,assignee,status,customfield_10998&maxResults=100&jql=`;
+  let url = `${jiraConfig.jira_base_url}rest/api/3/search/jql?fields=description,assignee,status`
 
+  if (jiraConfig.show_sprint_value) { 
+    url += `,${jiraConfig.sprint_custom_field_id}`;
+  } 
+  url += `&maxResults=100&jql=`;
+  
   if (request.call === "fetchJIraIssuesByDrupalIds") {
     let searchFragments = [];
     request.issueIds.forEach(function (issueId) {
       searchFragments.push(`description~%22issues/${issueId}%22`);
     });
     url += searchFragments.join(" or ");
-    if (jiraConfig.ignore_jira_projects) { 
-      url += " and (project not in (FR))";
-    }
-
     fetch(url)
         .then((response) => response.text())
         .then((text) => parseJiraIssuesJson(text))
