@@ -17,7 +17,7 @@
 
 // Add placeholder for message div on issue page
   const regex =
-      /https:\/\/www\.drupal\.org\/project\/(automatic_updates|experience_builder)\/issues\/.*/g;
+      /https:\/\/www\.drupal\.org\/project\/(automatic_updates|experience_builder|canvas)\/issues\/.*/g;
   if (url.match(regex)) {
     var issueId = utils.getIssueIdFromUrl(url);
     pageIssueId = issueId;
@@ -95,15 +95,19 @@
 
   function updatePlaceHoldersForIssue(jiraIssue) {
     issueId = jiraIssue.drupalIssueId;
+    console.log(issueId);
     var divs = document.getElementsByClassName(`jira-issue-${issueId}`);
+    
     [].forEach.call(divs, function (div) {
       div.className += " jira-issue-found";
+
       let link = document.createElement("a");
       link.setAttribute("href", jiraIssue.url);
       link.title = "Open in Jira";
+
       link.innerText = `Jira: ${jiraIssue.key}`;
-      if (jiraIssue.assigned) {
-        link.innerText += ` - assigned ${jiraIssue.assigned.displayName}`;
+      if (jiraIssue.assignee) {
+        link.innerText += ` - assigned ${jiraIssue.assignee}`;
       } else {
         link.innerText += ` - unassigned`;
       }
@@ -111,8 +115,18 @@
       if (jiraIssue.sprint) {
         link.innerText += ` #### ${jiraIssue.sprint}`;  
       }
-      div.innerText = "";
-      div.appendChild(link);
+      if (div.innerText != "⏱") {
+        //There are more than one issues. Let's add a break element and add the JIRA issue
+        let htmlBreak = document.createElement("br");
+        div.appendChild(htmlBreak);
+        div.appendChild(link);
+      }
+      else {
+        div.innerText = "";
+        div.appendChild(link);
+      }
+      // div.innerText = "";
+      // div.appendChild(link);
     });
   }
   createJiraLinks(issueIds);
