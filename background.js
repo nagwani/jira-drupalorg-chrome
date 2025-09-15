@@ -286,7 +286,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     url += `,${jiraConfig.sprint_custom_field_id}`;
   } 
   url += `&maxResults=100&jql=`;
-  
+
   if (request.call === "fetchJIraIssuesByDrupalIds") {
     let searchFragments = [];
     request.issueIds.forEach(function (issueId) {
@@ -306,9 +306,6 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
       searchFragments.push(`id=${id}`);
     });
     url += searchFragments.join(" or ");
-    if (jiraConfig.ignore_jira_projects) { 
-      url += " and (project not in (FR))";
-    }
     let jiraIssues;
     fetch(url)
         .then((response) => response.text())
