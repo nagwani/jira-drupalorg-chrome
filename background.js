@@ -3,19 +3,52 @@ import { utils } from "./common.js";
 import { jiraConfig } from "./config.js";
 
 function findDrupalIssueId(issue) {
-  let description = issue.fields.description;
-  const regex = /https:\/\/www\.drupal\.org\/project\/.*\/issues\/\d*/g;
-  if (description) {
-    let matches = description.match(regex);
+  const description = issue.fields.description;
+  const regex = /https:\/\/www\.drupal\.org\/project\/.*\/issues\/\d+/g;
 
-    if (matches && matches.length > 0) {
-      let issueId;
-      matches.forEach(function (match) {
-        issueId = utils.getIssueIdFromUrl(match);
-      });
-      return issueId;
-    }
+  if (!description || !description.content) return undefined;
+
+  // Recursively extracts all possible URLs from content tree
+  function extractUrls(contentArr) {
+    let urls = [];
+    contentArr.forEach(item => {
+      // Case 1: inlineCard URL
+      if (item.type === 'inlineCard' && item.attrs && item.attrs.url) {
+        if (regex.test(item.attrs.url)) urls.push(item.attrs.url);
+      }
+      // Case 2: text node with marks (links)
+      if (item.type === 'text') {
+        if (item.marks && Array.isArray(item.marks)) {
+          item.marks.forEach(mark => {
+            if (mark.type === 'link' && mark.attrs && regex.test(mark.attrs.href)) {
+              urls.push(mark.attrs.href);
+            }
+          });
+        }
+        // Also check the raw text for a matching URL
+        if (typeof item.text === 'string') {
+          const matches = item.text.match(regex);
+          if (matches) urls.push(...matches);
+        }
+      }
+      // Recurse into nested content
+      if (item.content) {
+        urls = urls.concat(extractUrls(item.content));
+      }
+    });
+    return urls;
   }
+
+  const matches = extractUrls(description.content);
+  if (matches.length > 0) {
+    // Return the last found issue ID as before
+    let issueId;
+    matches.forEach(match => {
+      issueId = utils.getIssueIdFromUrl(match);
+    });
+    return issueId;
+  }
+  return undefined;
 }
 
 function parseJiraIssuesJson(text) {
@@ -28,21 +61,33 @@ function parseJiraIssuesJson(text) {
 
   let issues = decoded.issues;
   let newIssues = [];
+
   issues.forEach(function (issue) {
     try {
       let newIssue = {};
       newIssue.url = `${jiraConfig.jira_base_url}browse/${issue.key}`;
       newIssue.id = issue.id;
       newIssue.key = issue.key;
-      newIssue.assigned = issue.fields.assignee;
+
+      if (issue.fields.assignee) {
+        newIssue.assignee = issue.fields.assignee.displayName;
+      }
+      else {
+        newIssue.assignee = issue.fields.assignee;
+      }
+      
       newIssue.status = issue.fields.status.name;
       newIssue.sprint = "";
+      
       if (jiraConfig.show_sprint_value) { 
+
         if (issue['fields'][jiraConfig.sprint_custom_field_id]) {
-          newIssue.sprint = issue['fields'][jiraConfig.sprint_custom_field_id][0].name;
+          let length = issue['fields'][jiraConfig.sprint_custom_field_id].length;
+          newIssue.sprint = issue['fields'][jiraConfig.sprint_custom_field_id][length-1].name;
         }
       }
       const drupalId = findDrupalIssueId(issue);
+
       if (drupalId) {
         newIssue.drupalIssueId = drupalId;
         newIssue.drupalUrl = `https://www.drupal.org/i/${drupalId}`;
@@ -235,7 +280,13 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     return true; // Will respond asynchronously
   }
   
-  let url = `${jiraConfig.jira_base_url}rest/api/2/search?jql=`;
+  let url = `${jiraConfig.jira_base_url}rest/api/3/search/jql?fields=description,assignee,status`;
+
+  if (jiraConfig.show_sprint_value) { 
+    url += `,${jiraConfig.sprint_custom_field_id}`;
+  } 
+  url += `&maxResults=100&jql=`;
+
   if (request.call === "fetchJIraIssuesByDrupalIds") {
     let searchFragments = [];
     request.issueIds.forEach(function (issueId) {
