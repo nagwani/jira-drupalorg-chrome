@@ -280,7 +280,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     return true; // Will respond asynchronously
   }
   
-  let url = `${jiraConfig.jira_base_url}rest/api/3/search/jql?fields=description,assignee,status`
+  let url = `${jiraConfig.jira_base_url}rest/api/3/search/jql?fields=description,assignee,status`;
 
   if (jiraConfig.show_sprint_value) { 
     url += `,${jiraConfig.sprint_custom_field_id}`;

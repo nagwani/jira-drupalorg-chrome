@@ -125,8 +125,6 @@
         div.innerText = "";
         div.appendChild(link);
       }
-      // div.innerText = "";
-      // div.appendChild(link);
     });
   }
   createJiraLinks(issueIds);
